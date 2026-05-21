@@ -1,0 +1,2 @@
+import{g as i,i as s,a as n,r as t,d as o,e as d,l as r,b as c}from"./assets/handlers-CDtBrRLY.js";import"./assets/vendor-C_LdHis7.js";async function l(){var e,a;document.documentElement.dataset.theme=i(),s(),n(),(e=t.categoriesList)==null||e.addEventListener("click",o),(a=t.loadMoreBtn)==null||a.addEventListener("click",d),await r(),await c({page:1,append:!1})}l();
+//# sourceMappingURL=index.js.map
