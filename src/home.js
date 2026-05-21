@@ -1,38 +1,26 @@
 //Логіка сторінки Home
-import { refs } from './refs.js';
-import { initModal } from './modal.js';
+import { refs } from './js/refs.js';
+import { initModalListeners } from './js/modal.js';
 import {
+  initSharedListeners,
   loadInitialCategories,
-  loadInitialProducts,
+  loadProducts,
   onCategoryClick,
-  onProductClick,
   onLoadMoreClick,
-  onModalActionClick,
-  onSearchSubmit,
-  onClearSearchClick,
-  onSearchInput,
-  onScrollUpClick,
-  updateNavCounters,
-} from './handlers.js';
-import { initTheme, toggleTheme } from './helpers.js';
+} from './js/handlers.js';
+import { getTheme } from './js/storage.js';
 
 async function initHomePage() {
-  initTheme();
-  initModal();
-  updateNavCounters();
+  document.documentElement.dataset.theme = getTheme();
 
-  await loadInitialCategories();
-  await loadInitialProducts();
+  initModalListeners();
+  initSharedListeners();
 
   refs.categoriesList?.addEventListener('click', onCategoryClick);
-  refs.productsList?.addEventListener('click', onProductClick);
   refs.loadMoreBtn?.addEventListener('click', onLoadMoreClick);
-  refs.modalContent?.addEventListener('click', onModalActionClick);
-  refs.searchForm?.addEventListener('submit', onSearchSubmit);
-  refs.clearSearchBtn?.addEventListener('click', onClearSearchClick);
-  refs.searchInput?.addEventListener('input', onSearchInput);
-  refs.scrollUpBtn?.addEventListener('click', onScrollUpClick);
-  refs.themeBtn?.addEventListener('click', toggleTheme);
+
+  await loadInitialCategories();
+  await loadProducts({ page: 1, append: false });
 }
 
 initHomePage();

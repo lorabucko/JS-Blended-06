@@ -13,19 +13,21 @@ function onBackdropClick(event) {
 }
 
 export function openModal() {
+  if (!refs.modal) return;
+
   refs.modal.classList.add('modal--is-open');
   document.addEventListener('keydown', onEscKeyPress);
   refs.modal.addEventListener('click', onBackdropClick);
 }
 
 export function closeModal() {
+  if (!refs.modal) return;
+
   refs.modal.classList.remove('modal--is-open');
   document.removeEventListener('keydown', onEscKeyPress);
   refs.modal.removeEventListener('click', onBackdropClick);
 }
 
-export function initModal() {
-  if (refs.modalCloseBtn) {
-    refs.modalCloseBtn.addEventListener('click', closeModal);
-  }
+export function initModalListeners() {
+  refs.modalCloseBtn?.addEventListener('click', closeModal);
 }

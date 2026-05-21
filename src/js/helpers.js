@@ -1,60 +1,76 @@
-import { STORAGE_KEYS } from './constants.js';
-import { load, save } from './storage.js';
+import { refs } from './refs.js';
 
 export function showLoader() {
-  const loader = document.querySelector('.loader');
-  if (loader) loader.classList.add('loader--visible');
+  refs.loader?.classList.add('loader--visible');
 }
 
 export function hideLoader() {
-  const loader = document.querySelector('.loader');
-  if (loader) loader.classList.remove('loader--visible');
+  refs.loader?.classList.remove('loader--visible');
 }
 
 export function showNotFound() {
-  const el = document.querySelector('.not-found');
-  if (el) el.classList.add('not-found--visible');
+  refs.notFound?.classList.add('not-found--visible');
 }
 
 export function hideNotFound() {
-  const el = document.querySelector('.not-found');
-  if (el) el.classList.remove('not-found--visible');
+  refs.notFound?.classList.remove('not-found--visible');
 }
 
-export function showLoadMoreButton() {
-  const btn = document.querySelector('.load-more');
-  if (btn) btn.hidden = false;
-}
-
-export function hideLoadMoreButton() {
-  const btn = document.querySelector('.load-more');
-  if (btn) btn.hidden = true;
+export function toggleLoadMoreButton(isVisible) {
+  refs.loadMoreBtn?.classList.toggle('is-hidden', !isVisible);
 }
 
 export function smoothScrollUp() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-export function updateThemeOnHtml(theme) {
-  document.documentElement.dataset.theme = theme;
+export function getProductIdFromEvent(event) {
+  const productCard = event.target.closest('.products__item');
+  return productCard ? Number(productCard.dataset.id) : null;
 }
 
-export function initTheme() {
-  const savedTheme = load(STORAGE_KEYS.THEME, 'light');
-  updateThemeOnHtml(savedTheme);
+export function isAllCategory(category) {
+  return category.trim().toLowerCase() === 'all';
 }
 
-export function toggleTheme() {
-  const currentTheme = load(STORAGE_KEYS.THEME, 'light');
-  const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
-  save(STORAGE_KEYS.THEME, nextTheme);
-  updateThemeOnHtml(nextTheme);
+export function isValidSearchQuery(query) {
+  return query.trim().length > 0;
 }
 
-export function calculateTotalPrice(products = []) {
-  return products.reduce((total, product) => total + product.price, 0);
+export function setActiveCategoryButton(activeButton) {
+  const buttons = refs.categoriesList?.querySelectorAll('.categories__btn');
+
+  buttons?.forEach(button => {
+    button.classList.toggle(
+      'categories__btn--active',
+      button === activeButton
+    );
+  });
 }
 
-export function getIdsFromStorage(key) {
-  return load(key, []);
+export function notifyInfo(message) {
+  if (window.iziToast) {
+    window.iziToast.info({
+      message,
+      position: 'topRight',
+    });
+  }
+}
+
+export function notifySuccess(message) {
+  if (window.iziToast) {
+    window.iziToast.success({
+      message,
+      position: 'topRight',
+    });
+  }
+}
+
+export function notifyError(message) {
+  if (window.iziToast) {
+    window.iziToast.error({
+      message,
+      position: 'topRight',
+    });
+  }
 }

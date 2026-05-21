@@ -12,10 +12,11 @@
         type="text"
         name="searchValue"
         placeholder="Enter product name"
+        aria-label="Enter product name"
       />
       <button
         type="button"
-        class="search-form__btn-clear"
+        class="search-form__btn-clear is-hidden"
         aria-label="Clear search"
       >
         ×
@@ -32,18 +33,22 @@
           <a class="nav__link {=$highlight-cart}" href="./cart.html">
             Cart
             <span class="nav__count" data-cart-count>0</span>
-            <!-- Динамічне число -->
           </a>
         </li>
         <li class="nav__item">
           <a class="nav__link {=$highlight-wishlist}" href="./wishlist.html">
             Wishlist
             <span class="nav__count" data-wishlist-count>0</span>
-            <!-- Динамічне число -->
           </a>
         </li>
       </ul>
     </nav>
-    <button class="theme-toggle-btn" aria-label="Toggle theme"></button>
+
+    <button
+      class="theme-toggle-btn"
+      type="button"
+      data-theme-toggle
+      aria-label="Toggle theme"
+    ></button>
   </div>
 </header>

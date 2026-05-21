@@ -1,333 +1,337 @@
-import iziToast from 'izitoast';
+import { STORAGE_KEYS, TEXT, PRODUCTS_PER_PAGE } from './constants.js';
+import { refs } from './refs.js';
 import {
+  getAllProducts,
   getCategories,
-  getProducts,
   getProductById,
   getProductsByCategory,
   searchProducts,
 } from './products-api.js';
 import {
-  createCategoryMarkup,
-  createProductsMarkup,
-  createModalProductMarkup,
+  clearProductsList,
+  renderCartSummary,
   renderCategories,
+  renderCounters,
+  renderModalProduct,
   renderProducts,
-  appendProducts,
-  renderModalContent,
-  renderCounter,
 } from './render-functions.js';
-import { refs } from './refs.js';
-import { CATEGORY_ALL, PRODUCTS_LIMIT, STORAGE_KEYS } from './constants.js';
 import {
-  addIdToStorage,
-  hasIdInStorage,
-  removeIdFromStorage,
-  toggleIdInStorage,
-  load,
-} from './storage.js';
-import {
-  showLoader,
+  getProductIdFromEvent,
   hideLoader,
-  showNotFound,
-  hideNotFound,
-  showLoadMoreButton,
-  hideLoadMoreButton,
+  isAllCategory,
+  isValidSearchQuery,
+  notifyError,
+  notifyInfo,
+  notifySuccess,
+  setActiveCategoryButton,
+  showLoader,
 } from './helpers.js';
-import { openModal, closeModal } from './modal.js';
+import { openModal } from './modal.js';
+import { getStoredIds, setTheme, toggleIdInStorage } from './storage.js';
 
 export const state = {
   currentPage: 1,
-  currentCategory: CATEGORY_ALL,
+  currentCategory: 'All',
   currentQuery: '',
   total: 0,
   mode: 'all',
-  products: [],
-  modalProductId: null,
 };
 
-export function updateNavCounters() {
-  const wishlist = load(STORAGE_KEYS.WISHLIST, []);
-  const cart = load(STORAGE_KEYS.CART, []);
+const showNotFoundMessage = isVisible => {
+  refs.notFound?.classList.toggle('not-found--visible', isVisible);
+};
 
-  renderCounter(refs.wishlistCount, wishlist.length);
-  renderCounter(refs.cartCount, cart.length);
-}
+const toggleLoadMoreButton = isVisible => {
+  refs.loadMoreBtn?.classList.toggle('is-hidden', !isVisible);
+};
 
-function checkLoadMoreVisibility() {
-  const loadedItems = state.currentPage * PRODUCTS_LIMIT;
+const getResponseProducts = response => response.products ?? response;
 
-  if (loadedItems >= state.total) {
-    hideLoadMoreButton();
-    iziToast.info({
-      title: 'Info',
-      message: 'Products ended',
-      position: 'topRight',
-    });
-  } else {
-    showLoadMoreButton();
+const getPaginatedProducts = products => {
+  const start = (state.currentPage - 1) * PRODUCTS_PER_PAGE;
+  const end = start + PRODUCTS_PER_PAGE;
+  return products.slice(start, end);
+};
+
+const updateHomeView = (products, total, append = false) => {
+  if (!append) {
+    clearProductsList();
   }
-}
 
-export async function loadInitialCategories() {
+  showNotFoundMessage(products.length === 0);
+
+  if (products.length > 0) {
+    renderProducts(products, { append });
+  }
+
+  const renderedCount = refs.productsList?.children.length ?? 0;
+  const hasMore = renderedCount < total;
+
+  toggleLoadMoreButton(hasMore);
+
+  if (!hasMore && renderedCount > 0 && state.currentPage > 1) {
+    notifyInfo('No more products found');
+  }
+};
+
+export const loadInitialCategories = async () => {
   try {
     showLoader();
+
     const categories = await getCategories();
-    const allCategories = [CATEGORY_ALL, ...categories];
-    renderCategories(
-      refs.categoriesList,
-      createCategoryMarkup(allCategories, CATEGORY_ALL)
-    );
+    renderCategories(['All', ...categories]);
+
+    const allBtn = refs.categoriesList?.querySelector('.categories__btn');
+    if (allBtn) {
+      allBtn.classList.add('categories__btn--active');
+    }
   } catch (error) {
-    iziToast.error({
-      title: 'Error',
-      message: 'Failed to load categories',
-      position: 'topRight',
-    });
+    notifyError('Failed to load categories');
+    console.error(error);
   } finally {
     hideLoader();
   }
-}
+};
 
-export async function loadInitialProducts() {
+export const loadProducts = async ({ page = 1, append = false } = {}) => {
   try {
     showLoader();
-    hideNotFound();
+    state.currentPage = page;
 
-    state.currentPage = 1;
-    state.currentCategory = CATEGORY_ALL;
-    state.currentQuery = '';
-    state.mode = 'all';
+    let response;
+    let total = 0;
+    let products = [];
 
-    const data = await getProducts(state.currentPage);
-    state.total = data.total;
-    state.products = data.products;
-
-    renderProducts(refs.productsList, createProductsMarkup(data.products));
-    checkLoadMoreVisibility();
-  } catch (error) {
-    iziToast.error({
-      title: 'Error',
-      message: 'Failed to load products',
-      position: 'topRight',
-    });
-  } finally {
-    hideLoader();
-  }
-}
-
-export async function onLoadMoreClick() {
-  try {
-    showLoader();
-    state.currentPage += 1;
-
-    let data;
-
-    if (state.mode === 'category') {
-      data = await getProductsByCategory(state.currentCategory, state.currentPage);
-    } else if (state.mode === 'search') {
-      data = await searchProducts(state.currentQuery, state.currentPage);
+    if (state.mode === 'search' && state.currentQuery) {
+      response = await searchProducts(state.currentQuery);
+      products = getResponseProducts(response);
+      total = products.length;
+      products = getPaginatedProducts(products);
+    } else if (state.mode === 'category' && !isAllCategory(state.currentCategory)) {
+      response = await getProductsByCategory(state.currentCategory);
+      products = getResponseProducts(response);
+      total = products.length;
+      products = getPaginatedProducts(products);
     } else {
-      data = await getProducts(state.currentPage);
+      response = await getAllProducts(page);
+      products = getResponseProducts(response);
+      total = response.total ?? products.length;
     }
 
-    appendProducts(refs.productsList, createProductsMarkup(data.products));
-    checkLoadMoreVisibility();
+    state.total = total;
+    updateHomeView(products, total, append);
   } catch (error) {
-    iziToast.error({
-      title: 'Error',
-      message: 'Failed to load more products',
-      position: 'topRight',
-    });
+    notifyError('Failed to load products');
+    console.error(error);
   } finally {
     hideLoader();
   }
-}
+};
 
-export async function onCategoryClick(event) {
-  const btn = event.target.closest('.categories__btn');
-  if (!btn) return;
+export const onCategoryClick = async event => {
+  const button = event.target.closest('.categories__btn');
+  if (!button) return;
 
-  const category = btn.textContent.trim();
+  state.currentPage = 1;
+  state.currentQuery = '';
+  state.currentCategory = button.textContent.trim();
+  state.mode = isAllCategory(state.currentCategory) ? 'all' : 'category';
 
-  document
-    .querySelectorAll('.categories__btn')
-    .forEach(item => item.classList.remove('categories__btn--active'));
-  btn.classList.add('categories__btn--active');
+  setActiveCategoryButton(button);
 
-  try {
-    showLoader();
-    hideNotFound();
-
-    state.currentPage = 1;
-    state.currentQuery = '';
-
-    let data;
-
-    if (category === CATEGORY_ALL) {
-      state.currentCategory = CATEGORY_ALL;
-      state.mode = 'all';
-      data = await getProducts(state.currentPage);
-    } else {
-      state.currentCategory = category;
-      state.mode = 'category';
-      data = await getProductsByCategory(category, state.currentPage);
-    }
-
-    state.total = data.total || data.products.length;
-
-    if (!data.products.length) {
-      refs.productsList.innerHTML = '';
-      showNotFound();
-      hideLoadMoreButton();
-      return;
-    }
-
-    renderProducts(refs.productsList, createProductsMarkup(data.products));
-    checkLoadMoreVisibility();
-  } catch (error) {
-    iziToast.error({
-      title: 'Error',
-      message: 'Failed to load category products',
-      position: 'topRight',
-    });
-  } finally {
-    hideLoader();
+  if (refs.searchInput) {
+    refs.searchInput.value = '';
   }
-}
 
-export async function onProductClick(event) {
-  const productCard = event.target.closest('.products__item');
-  if (!productCard) return;
+  if (refs.clearSearchBtn) {
+    refs.clearSearchBtn.classList.add('is-hidden');
+  }
 
-  const productId = Number(productCard.dataset.id);
+  await loadProducts({ page: 1, append: false });
+};
+
+export const onLoadMoreClick = async () => {
+  const prevCount = refs.productsList?.children.length ?? 0;
+
+  if (prevCount >= state.total) {
+    toggleLoadMoreButton(false);
+    notifyInfo('No more products found');
+    return;
+  }
+
+  await loadProducts({ page: state.currentPage + 1, append: true });
+
+  const firstNewCard = refs.productsList?.children[prevCount];
+
+  firstNewCard?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start',
+  });
+};
+
+export const onProductClick = async event => {
+  const productId = getProductIdFromEvent(event);
+  if (!productId) return;
 
   try {
     showLoader();
 
     const product = await getProductById(productId);
-    state.modalProductId = productId;
-
-    const isInWishlist = hasIdInStorage(STORAGE_KEYS.WISHLIST, productId);
-    const isInCart = hasIdInStorage(STORAGE_KEYS.CART, productId);
-
-    renderModalContent(
-      refs.modalContent,
-      createModalProductMarkup(product, isInWishlist, isInCart)
-    );
-
+    renderModalProduct(product);
     openModal();
   } catch (error) {
-    iziToast.error({
-      title: 'Error',
-      message: 'Failed to load product details',
-      position: 'topRight',
-    });
+    notifyError('Failed to load product details');
+    console.error(error);
   } finally {
     hideLoader();
   }
-}
+};
 
-export function onModalActionClick(event) {
-  const btn = event.target.closest('button[data-action]');
-  if (!btn) return;
-
-  const action = btn.dataset.action;
-  const productId = state.modalProductId;
-
-  if (!productId) return;
-
-  if (action === 'wishlist') {
-    const { added } = toggleIdInStorage(STORAGE_KEYS.WISHLIST, productId);
-    btn.textContent = added ? 'Remove from Wishlist' : 'Add to Wishlist';
-
-    iziToast.success({
-      title: 'Success',
-      message: added ? 'Added to wishlist' : 'Removed from wishlist',
-      position: 'topRight',
-    });
-  }
-
-  if (action === 'cart') {
-    const { added } = toggleIdInStorage(STORAGE_KEYS.CART, productId);
-    btn.textContent = added ? 'Remove from Cart' : 'Add to Cart';
-
-    iziToast.success({
-      title: 'Success',
-      message: added ? 'Added to cart' : 'Removed from cart',
-      position: 'topRight',
-    });
-  }
-
-  updateNavCounters();
-}
-
-export async function onSearchSubmit(event) {
+export const onSearchSubmit = async event => {
   event.preventDefault();
 
-  const query = refs.searchInput.value.trim();
+  const query = refs.searchInput?.value.trim() ?? '';
 
-  if (!query) {
-    iziToast.warning({
-      title: 'Warning',
-      message: 'Enter product name',
-      position: 'topRight',
-    });
+  if (!isValidSearchQuery(query)) {
+    notifyInfo('Please enter a search query');
     return;
   }
 
+  state.currentPage = 1;
+  state.currentQuery = query;
+  state.currentCategory = 'All';
+  state.mode = 'search';
+
+  if (refs.clearSearchBtn) {
+    refs.clearSearchBtn.classList.remove('is-hidden');
+  }
+
+  const allBtn = refs.categoriesList?.querySelector('.categories__btn');
+  if (allBtn) {
+    setActiveCategoryButton(allBtn);
+  }
+
+  await loadProducts({ page: 1, append: false });
+};
+
+export const onClearSearchClick = async () => {
+  state.currentPage = 1;
+  state.currentQuery = '';
+  state.currentCategory = 'All';
+  state.mode = 'all';
+
+  if (refs.searchInput) {
+    refs.searchInput.value = '';
+  }
+
+  if (refs.clearSearchBtn) {
+    refs.clearSearchBtn.classList.add('is-hidden');
+  }
+
+  const allBtn = refs.categoriesList?.querySelector('.categories__btn');
+  if (allBtn) {
+    setActiveCategoryButton(allBtn);
+  }
+
+  await loadProducts({ page: 1, append: false });
+};
+
+export const onSearchInput = event => {
+  const hasValue = event.target.value.trim().length > 0;
+  refs.clearSearchBtn?.classList.toggle('is-hidden', !hasValue);
+};
+
+export const onModalActionClick = event => {
+  const button = event.target.closest('[data-action]');
+  if (!button) return;
+
+  const productContainer = refs.modalProduct?.querySelector('[data-id]');
+  const productId = productContainer?.dataset.id;
+
+  if (!productId) return;
+
+  const action = button.dataset.action;
+  const storageKey =
+    action === 'cart' ? STORAGE_KEYS.cart : STORAGE_KEYS.wishlist;
+
+  const { isAdded } = toggleIdInStorage(storageKey, Number(productId));
+
+  if (action === 'cart') {
+    button.textContent = isAdded ? TEXT.removeFromCart : TEXT.addToCart;
+  }
+
+  if (action === 'wishlist') {
+    button.textContent = isAdded
+      ? TEXT.removeFromWishlist
+      : TEXT.addToWishlist;
+  }
+
+  renderCounters();
+};
+
+export const onBuyProductsClick = () => {
+  notifySuccess('Products purchased successfully');
+};
+
+export const onThemeToggleClick = () => {
+  const currentTheme = document.documentElement.dataset.theme || 'light';
+  const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+  document.documentElement.dataset.theme = nextTheme;
+  setTheme(nextTheme);
+};
+
+export const onScrollUpClick = () => {
+  refs.productsList?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start',
+  });
+};
+
+export const loadProductsByIds = async storageKey => {
   try {
     showLoader();
-    hideNotFound();
 
-    state.currentPage = 1;
-    state.currentQuery = query;
-    state.currentCategory = CATEGORY_ALL;
-    state.mode = 'search';
+    const ids = getStoredIds(storageKey);
 
-    const data = await searchProducts(query, state.currentPage);
-    state.total = data.total || data.products.length;
+    if (!ids.length) {
+      clearProductsList();
+      showNotFoundMessage(true);
+      toggleLoadMoreButton(false);
 
-    if (!data.products.length) {
-      refs.productsList.innerHTML = '';
-      showNotFound();
-      hideLoadMoreButton();
+      if (storageKey === STORAGE_KEYS.cart) {
+        renderCartSummary([]);
+      }
+
       return;
     }
 
-    renderProducts(refs.productsList, createProductsMarkup(data.products));
-    checkLoadMoreVisibility();
+    const products = await Promise.all(ids.map(id => getProductById(id)));
+
+    clearProductsList();
+    renderProducts(products);
+    showNotFoundMessage(false);
+    toggleLoadMoreButton(false);
+
+    if (storageKey === STORAGE_KEYS.cart) {
+      renderCartSummary(products);
+    }
   } catch (error) {
-    iziToast.error({
-      title: 'Error',
-      message: 'Search failed',
-      position: 'topRight',
-    });
+    notifyError('Failed to load saved products');
+    console.error(error);
   } finally {
     hideLoader();
   }
-}
+};
 
-export async function onClearSearchClick() {
-  refs.searchInput.value = '';
-  refs.clearSearchBtn?.classList.remove('is-visible');
+export const initSharedListeners = () => {
+  refs.productsList?.addEventListener('click', onProductClick);
+  refs.searchForm?.addEventListener('submit', onSearchSubmit);
+  refs.searchInput?.addEventListener('input', onSearchInput);
+  refs.clearSearchBtn?.addEventListener('click', onClearSearchClick);
+  refs.modalProduct?.addEventListener('click', onModalActionClick);
+  refs.themeToggleBtn?.addEventListener('click', onThemeToggleClick);
+  refs.scrollUpBtn?.addEventListener('click', onScrollUpClick);
 
-  await loadInitialProducts();
-
-  document
-    .querySelectorAll('.categories__btn')
-    .forEach(btn =>
-      btn.classList.toggle(
-        'categories__btn--active',
-        btn.textContent.trim() === CATEGORY_ALL
-      )
-    );
-}
-
-export function onSearchInput() {
-  const value = refs.searchInput.value.trim();
-  refs.clearSearchBtn?.classList.toggle('is-visible', Boolean(value));
-}
-
-export function onScrollUpClick() {
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+  renderCounters();
+};

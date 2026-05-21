@@ -1,38 +1,44 @@
-import { BASE_URL, PRODUCTS_LIMIT } from './constants.js';
+import axios from 'axios';
+import { API_BASE_URL, API_ENDPOINTS } from './constants.js';
 
-async function fetchData(url) {
-  const response = await fetch(url);
+axios.defaults.baseURL = API_BASE_URL;
 
-  if (!response.ok) {
-    throw new Error(`HTTP error! Status: ${response.status}`);
-  }
-
-  return response.json();
+export async function getCategories() {
+  const { data } = await axios.get(API_ENDPOINTS.CATEGORIES);
+  return data;
 }
 
-export function getCategories() {
-  return fetchData(`${BASE_URL}/products/category-list`);
-}
+export async function getAllProducts(pageNumber = 1) {
+  const limit = 12;
+  const skip = (pageNumber - 1) * limit;
 
-export function getProducts(page = 1, limit = PRODUCTS_LIMIT) {
-  const skip = (page - 1) * limit;
-  return fetchData(`${BASE_URL}/products?limit=${limit}&skip=${skip}`);
-}
-
-export function getProductById(id) {
-  return fetchData(`${BASE_URL}/products/${id}`);
-}
-
-export function searchProducts(query, page = 1, limit = PRODUCTS_LIMIT) {
-  const skip = (page - 1) * limit;
-  return fetchData(
-    `${BASE_URL}/products/search?q=${encodeURIComponent(query)}&limit=${limit}&skip=${skip}`
+  const { data } = await axios.get(
+    `${API_ENDPOINTS.PRODUCTS}?limit=${limit}&skip=${skip}`
   );
+
+  return data;
 }
 
-export function getProductsByCategory(category, page = 1, limit = PRODUCTS_LIMIT) {
-  const skip = (page - 1) * limit;
-  return fetchData(
-    `${BASE_URL}/products/category/${encodeURIComponent(category)}?limit=${limit}&skip=${skip}`
+export async function getProductsByCategory(category) {
+  const { data } = await axios.get(
+    `${API_ENDPOINTS.PRODUCTS_BY_CATEGORY}${encodeURIComponent(category)}`
   );
+
+  return data;
+}
+
+export async function getProductById(productId) {
+  const { data } = await axios.get(
+    `${API_ENDPOINTS.PRODUCTS}/${productId}`
+  );
+
+  return data;
+}
+
+export async function searchProducts(query) {
+  const { data } = await axios.get(
+    `${API_ENDPOINTS.SEARCH}?q=${encodeURIComponent(query)}`
+  );
+
+  return data;
 }

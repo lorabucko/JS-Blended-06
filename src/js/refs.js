@@ -1,19 +1,25 @@
 export const refs = {
   categoriesList: document.querySelector('.categories'),
   productsList: document.querySelector('.products'),
-  loadMoreBtn: document.querySelector('.load-more'),
+  loadMoreBtn: document.querySelector('.load-more-btn'),
+  notFound: document.querySelector('.not-found'),
+
   searchForm: document.querySelector('.search-form'),
-  searchInput: document.querySelector('.search-form input'),
+  searchInput: document.querySelector('.search-form__input'),
   clearSearchBtn: document.querySelector('.search-form__btn-clear'),
+
   modal: document.querySelector('.modal'),
-  modalContent: document.querySelector('.modal-product'),
+  modalProduct: document.querySelector('.modal-product'),
   modalCloseBtn: document.querySelector('.modal__close-btn'),
-  backdrop: document.querySelector('.modal'),
-  wishlistCount: document.querySelector('[data-count="wishlist"]'),
-  cartCount: document.querySelector('[data-count="cart"]'),
-  scrollUpBtn: document.querySelector('.scroll-up'),
-  themeBtn: document.querySelector('.theme-toggle'),
+
+  cartCount: document.querySelector('[data-cart-count]'),
+  wishlistCount: document.querySelector('[data-wishlist-count]'),
+
+  loader: document.querySelector('.loader'),
+  scrollUpBtn: document.querySelector('.scroll-top-btn'),
+  themeToggleBtn: document.querySelector('[data-theme-toggle]'),
+
   cartItemsCount: document.querySelector('[data-cart-items]'),
   cartTotalPrice: document.querySelector('[data-cart-total]'),
-  buyBtn: document.querySelector('.cart-summary__btn'),
+  buyProductsBtn: document.querySelector('[data-buy-products]'),
 };
